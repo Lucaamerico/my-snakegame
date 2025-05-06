@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Snake Game</title>
   <style>
     body {
@@ -13,25 +14,21 @@
       align-items: center;
       margin: 0;
     }
-
     canvas {
       background: #111;
       margin-top: 20px;
       border: 2px solid #fff;
     }
-
     #score {
       font-size: 24px;
       margin-top: 10px;
     }
-
     #gameOver {
       display: none;
       color: red;
       font-size: 32px;
       margin-top: 10px;
     }
-
     #restartBtn {
       display: none;
       margin-top: 10px;
@@ -47,117 +44,8 @@
   <div id="score">Score: 0</div>
   <div id="gameOver">Game Over!</div>
   <button id="restartBtn">Restart</button>
-
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('score');
-    const gameOverEl = document.getElementById('gameOver');
-    const restartBtn = document.getElementById('restartBtn');
-
-    const gridSize = 20;
-    const tileSize = canvas.width / gridSize;
-
-    let snake, direction, food, score, gameInterval, gameRunning;
-
-    function initGame() {
-      snake = [{ x: 10, y: 10 }];
-      direction = { x: 0, y: 0 };
-      score = 0;
-      food = randomFood();
-      gameRunning = true;
-      gameOverEl.style.display = 'none';
-      restartBtn.style.display = 'none';
-      scoreEl.textContent = `Score: ${score}`;
-      clearInterval(gameInterval);
-      gameInterval = setInterval(update, 100);
-    }
-
-    function randomFood() {
-      let pos;
-      do {
-        pos = {
-          x: Math.floor(Math.random() * gridSize),
-          y: Math.floor(Math.random() * gridSize)
-        };
-      } while (snake.some(segment => segment.x === pos.x && segment.y === pos.y));
-      return pos;
-    }
-
-    function update() {
-      const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
-
-      // Wall collision
-      if (head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize) {
-        endGame();
-        return;
-      }
-
-      // Self collision
-      if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
-        endGame();
-        return;
-      }
-
-      snake.unshift(head);
-
-      // Food eaten
-      if (head.x === food.x && head.y === food.y) {
-        score++;
-        scoreEl.textContent = `Score: ${score}`;
-        food = randomFood();
-      } else {
-        snake.pop(); // Don't grow if no food
-      }
-
-      draw();
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Draw food
-      ctx.fillStyle = 'red';
-      ctx.fillRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize);
-
-      // Draw snake
-      ctx.fillStyle = 'lime';
-      for (let part of snake) {
-        ctx.fillRect(part.x * tileSize, part.y * tileSize, tileSize, tileSize);
-      }
-    }
-
-    function endGame() {
-      clearInterval(gameInterval);
-      gameRunning = false;
-      gameOverEl.style.display = 'block';
-      restartBtn.style.display = 'block';
-    }
-
-    document.addEventListener('keydown', e => {
-      if (!gameRunning) return;
-      switch (e.key) {
-        case 'ArrowUp':
-          if (direction.y !== 1) direction = { x: 0, y: -1 };
-          break;
-        case 'ArrowDown':
-          if (direction.y !== -1) direction = { x: 0, y: 1 };
-          break;
-        case 'ArrowLeft':
-          if (direction.x !== 1) direction = { x: -1, y: 0 };
-          break;
-        case 'ArrowRight':
-          if (direction.x !== -1) direction = { x: 1, y: 0 };
-          break;
-      }
-    });
-
-    restartBtn.addEventListener('click', () => {
-      initGame();
-    });
-
-    initGame(); // Start the game
-  </script>
+  <script src="snake_game.js"></script>
 </body>
 </html>
+
 
