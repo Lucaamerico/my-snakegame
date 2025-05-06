@@ -1,186 +1,133 @@
-import pygame
-import random
-import sys
-import os
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake Game</title>
+  <style>
+    canvas {
+      background-color: black;
+      display: block;
+      margin: 0 auto;
+      border: 2px solid #333;
+    }
+    body {
+      font-family: monospace;
+      text-align: center;
+      color: white;
+      background-color: #111;
+    }
+  </style>
+</head>
+<body>
+  <h1>Snake Game</h1>
+  <p>Use Arrow Keys to Control the Snake</p>
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <p id="score">Score: 0</p>
+  <p id="gameOver" style="display: none;">Game Over! Press R to restart.</p>
 
-# Initialize Pygame
-pygame.init()
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-# Constants
-TILE_SIZE = 20
-GRID_SIZE = 20
-WIDTH = HEIGHT = TILE_SIZE * GRID_SIZE
-FPS = 10
+    const tileSize = 20;
+    const tileCount = canvas.width / tileSize;
+    let snake = [ { x: 10, y: 10 } ];
+    let food = { x: 5, y: 5 };
+    let velocity = { x: 1, y: 0 };
+    let score = 0;
+    let gameOver = false;
 
-# Colors
-WHITE = (255, 255, 255)
-GREEN = (34, 139, 34)
-RED = (220, 20, 60)
-BLACK = (0, 0, 0)
-YELLOW = (255, 215, 0)
-BLUE = (30, 144, 255)
+    function drawRect(x, y, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+    }
 
-# Set up screen
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("🐍 Snake Game - CSC221 Final Project")
+    function drawGame() {
+      if (gameOver) return;
 
-# Fonts
-font = pygame.font.SysFont('consolas', 24)
-big_font = pygame.font.SysFont('consolas', 40)
+      update();
+      draw();
+      setTimeout(drawGame, 100);
+    }
 
-# Clock
-clock = pygame.time.Clock()
+    function update() {
+      const head = { x: snake[0].x + velocity.x, y: snake[0].y + velocity.y };
 
-# Sound setup (optional)
-pygame.mixer.init()
-eat_sound = pygame.mixer.Sound(pygame.mixer.SoundType)
-try:
-    eat_sound = pygame.mixer.Sound(pygame.mixer.Sound(os.path.join('eat.wav')))
-except:
-    eat_sound = None
+      // Check for wall collision
+      if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+        return endGame();
+      }
 
-def draw_text(text, color, x, y, center=True, size='small'):
-    if size == 'large':
-        surface = big_font.render(text, True, color)
-    else:
-        surface = font.render(text, True, color)
-    rect = surface.get_rect()
-    if center:
-        rect.center = (x, y)
-    else:
-        rect.topleft = (x, y)
-    screen.blit(surface, rect)
+      // Check for self collision
+      for (let segment of snake) {
+        if (segment.x === head.x && segment.y === head.y) {
+          return endGame();
+        }
+      }
 
-def draw_snake(snake):
-    for i, segment in enumerate(snake):
-        color = GREEN if i == 0 else BLUE
-        pygame.draw.rect(screen, color, (*segment, TILE_SIZE, TILE_SIZE))
+      snake.unshift(head);
 
-def draw_food(position):
-    pygame.draw.rect(screen, RED, (*position, TILE_SIZE, TILE_SIZE))
+      // Check for food
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        document.getElementById('score').textContent = 'Score: ' + score;
+        placeFood();
+      } else {
+        snake.pop();
+      }
+    }
 
-def generate_food(snake):
-    while True:
-        x = random.randint(0, GRID_SIZE - 1) * TILE_SIZE
-        y = random.randint(0, GRID_SIZE - 1) * TILE_SIZE
-        if (x, y) not in snake:
-            return (x, y)
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawRect(food.x, food.y, 'red');
+      snake.forEach((segment, index) => drawRect(segment.x, segment.y, index === 0 ? 'green' : 'lime'));
+    }
 
-def welcome_screen():
-    screen.fill(BLACK)
-    draw_text("Welcome to Snake Game", YELLOW, WIDTH // 2, HEIGHT // 3, size='large')
-    draw_text("Use Arrow Keys to Move", WHITE, WIDTH // 2, HEIGHT // 2)
-    draw_text("Press ENTER to Start", WHITE, WIDTH // 2, HEIGHT // 2 + 40)
-    draw_text("Press Q to Quit", WHITE, WIDTH // 2, HEIGHT // 2 + 80)
-    pygame.display.flip()
+    function placeFood() {
+      food = {
+        x: Math.floor(Math.random() * tileCount),
+        y: Math.floor(Math.random() * tileCount)
+      };
 
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    return
-                elif event.key == pygame.K_q:
-                    pygame.quit()
-                    sys.exit()
+      // Avoid placing food on the snake
+      for (let segment of snake) {
+        if (segment.x === food.x && segment.y === food.y) {
+          return placeFood();
+        }
+      }
+    }
 
-def show_game_over(score, high_score):
-    screen.fill(BLACK)
-    draw_text("Game Over", RED, WIDTH // 2, HEIGHT // 3, size='large')
-    draw_text(f"Your Score: {score}", WHITE, WIDTH // 2, HEIGHT // 2)
-    draw_text(f"High Score: {high_score}", YELLOW, WIDTH // 2, HEIGHT // 2 + 40)
-    draw_text("Press R to Restart or Q to Quit", WHITE, WIDTH // 2, HEIGHT // 1.5)
-    pygame.display.flip()
+    function endGame() {
+      gameOver = true;
+      document.getElementById('gameOver').style.display = 'block';
+    }
 
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    return True
-                elif event.key == pygame.K_q:
-                    pygame.quit()
-                    sys.exit()
+    document.addEventListener('keydown', e => {
+      if (gameOver && e.key.toLowerCase() === 'r') {
+        // Restart the game
+        snake = [ { x: 10, y: 10 } ];
+        velocity = { x: 1, y: 0 };
+        score = 0;
+        document.getElementById('score').textContent = 'Score: 0';
+        document.getElementById('gameOver').style.display = 'none';
+        gameOver = false;
+        placeFood();
+        drawGame();
+      }
 
-def draw_grid():
-    for x in range(0, WIDTH, TILE_SIZE):
-        pygame.draw.line(screen, (40, 40, 40), (x, 0), (x, HEIGHT))
-    for y in range(0, HEIGHT, TILE_SIZE):
-        pygame.draw.line(screen, (40, 40, 40), (0, y), (WIDTH, y))
+      if (e.key === 'ArrowUp' && velocity.y === 0) {
+        velocity = { x: 0, y: -1 };
+      } else if (e.key === 'ArrowDown' && velocity.y === 0) {
+        velocity = { x: 0, y: 1 };
+      } else if (e.key === 'ArrowLeft' && velocity.x === 0) {
+        velocity = { x: -1, y: 0 };
+      } else if (e.key === 'ArrowRight' && velocity.x === 0) {
+        velocity = { x: 1, y: 0 };
+      }
+    });
 
-def game_loop():
-    snake = [(100, 100), (80, 100), (60, 100)]
-    direction = (TILE_SIZE, 0)
-    food = generate_food(snake)
-    score = 0
-    high_score = 0
-
-    running = True
-    while running:
-        clock.tick(FPS)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
-            # Controls
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP and direction != (0, TILE_SIZE):
-                    direction = (0, -TILE_SIZE)
-                elif event.key == pygame.K_DOWN and direction != (0, -TILE_SIZE):
-                    direction = (0, TILE_SIZE)
-                elif event.key == pygame.K_LEFT and direction != (TILE_SIZE, 0):
-                    direction = (-TILE_SIZE, 0)
-                elif event.key == pygame.K_RIGHT and direction != (-TILE_SIZE, 0):
-                    direction = (TILE_SIZE, 0)
-
-        # Update snake position
-        head_x, head_y = snake[0]
-        new_head = (head_x + direction[0], head_y + direction[1])
-
-        # Collision with walls
-        if (
-            new_head[0] < 0 or new_head[0] >= WIDTH or
-            new_head[1] < 0 or new_head[1] >= HEIGHT
-        ):
-            break
-
-        # Collision with self
-        if new_head in snake:
-            break
-
-        snake.insert(0, new_head)
-
-        # Eating food
-        if new_head == food:
-            score += 1
-            food = generate_food(snake)
-            if eat_sound:
-                eat_sound.play()
-        else:
-            snake.pop()
-
-        # Drawing
-        screen.fill(BLACK)
-        draw_grid()
-        draw_food(food)
-        draw_snake(snake)
-        draw_text(f"Score: {score}", WHITE, 10, 10, center=False)
-
-        pygame.display.flip()
-
-    high_score = max(score, high_score)
-    return score, high_score
-
-# Main game execution
-if __name__ == "__main__":
-    while True:
-        welcome_screen()
-        score, high_score = game_loop()
-        restart = show_game_over(score, high_score)
-        if not restart:
-            break
+    drawGame();
+  </script>
+</body>
+</html>
