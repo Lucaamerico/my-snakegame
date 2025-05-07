@@ -1,51 +1,174 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snake Game</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #000;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 0;
-    }
-    canvas {
-      background: #111;
-      margin-top: 20px;
-      border: 2px solid #fff;
-    }
-    #score {
-      font-size: 24px;
-      margin-top: 10px;
-    }
-    #gameOver {
-      display: none;
-      color: red;
-      font-size: 32px;
-      margin-top: 10px;
-    }
-    #restartBtn {
-      display: none;
-      margin-top: 10px;
-      padding: 10px 20px;
-      font-size: 18px;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
-  <h1>Snake Game</h1>
-  <canvas id="gameCanvas" width="400" height="400"></canvas>
-  <div id="score">Score: 0</div>
-  <div id="gameOver">Game Over!</div>
-  <button id="restartBtn">Restart</button>
-  <script src="snake_game.js"></script>
-</body>
-</html>
+import pygame
+import random
+import os
 
+# Constants
+WIDTH, HEIGHT = 400, 400
+TILE_SIZE = 20
+TILE_COUNT = WIDTH // TILE_SIZE
+NORMAL_SPEED = 10
+BOOST_SPEED = 20
+BOOST_DURATION = 5000  # milliseconds
+FONT_SIZE = 20
+HIGH_SCORE_FILE = "highscore.txt"
+
+# Colors
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+CYAN = (0, 255, 255)
+BLACK = (0, 0, 0)
+
+# Pygame setup
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Snake Game")
+clock = pygame.time.Clock()
+font = pygame.font.SysFont("monospace", FONT_SIZE)
+
+def load_high_score():
+    if os.path.exists(HIGH_SCORE_FILE):
+        with open(HIGH_SCORE_FILE, "r") as f:
+            return int(f.read())
+    return 0
+
+def save_high_score(score):
+    with open(HIGH_SCORE_FILE, "w") as f:
+        f.write(str(score))
+
+def draw_text(text, y, color=(255, 255, 255)):
+    label = font.render(text, True, color)
+    screen.blit(label, (10, y))
+
+def get_empty_tile(snake):
+    while True:
+        pos = [random.randint(0, TILE_COUNT - 1), random.randint(0, TILE_COUNT - 1)]
+        if pos not in snake:
+            return pos
+
+def hsl_to_rgb(h, s, l):
+    import colorsys
+    r, g, b = colorsys.hls_to_rgb(h/360, l, s)
+    return int(r*255), int(g*255), int(b*255)
+
+def main():
+    running = True
+    snake = [[10, 10]]
+    direction = [1, 0]
+    food = get_empty_tile(snake)
+    boost = None
+    rainbow_mode = False
+    boost_active = False
+    last_boost_time = 0
+    speed = NORMAL_SPEED
+    score = 0
+    high_score = load_high_score()
+    game_over = False
+
+    while running:
+        screen.fill(BLACK)
+
+        # Event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+            elif event.type == pygame.KEYDOWN:
+                if not game_over:
+                    if event.key == pygame.K_UP and direction[1] == 0:
+                        direction = [0, -1]
+                    elif event.key == pygame.K_DOWN and direction[1] == 0:
+                        direction = [0, 1]
+                    elif event.key == pygame.K_LEFT and direction[0] == 0:
+                        direction = [-1, 0]
+                    elif event.key == pygame.K_RIGHT and direction[0] == 0:
+                        direction = [1, 0]
+                if game_over and event.key == pygame.K_r:
+                    return main()
+
+        # Game over logic
+        if game_over:
+            draw_text("Game Over! Press R to Restart", HEIGHT // 2 - 20)
+            pygame.display.flip()
+            continue
+
+        # Move snake
+        new_head = [snake[0][0] + direction[0], snake[0][1] + direction[1]]
+
+        # Collision
+        if (
+            new_head in snake
+            or not 0 <= new_head[0] < TILE_COUNT
+            or not 0 <= new_head[1] < TILE_COUNT
+        ):
+            game_over = True
+            continue
+
+        snake.insert(0, new_head)
+
+        if new_head == food:
+            score += 1
+            if score > high_score:
+                high_score = score
+                save_high_score(high_score)
+            food = get_empty_tile(snake)
+            if score >= 5:
+                rainbow_mode = True
+            if score >= 40 and not boost and not boost_active and random.random() < 0.2:
+                boost = get_empty_tile(snake)
+        elif boost and new_head == boost:
+            boost = None
+            boost_active = True
+            last_boost_time = pygame.time.get_ticks()
+            speed = BOOST_SPEED
+        else:
+            snake.pop()
+
+        # Deactivate boost
+        if boost_active and pygame.time.get_ticks() - last_boost_time > BOOST_DURATION:
+            boost_active = False
+            speed = NORMAL_SPEED
+            if score >= 40 and random.random() < 0.2:
+                boost = get_empty_tile(snake)
+
+        # Draw food
+        pygame.draw.rect(
+            screen,
+            RED,
+            pygame.Rect(food[0] * TILE_SIZE, food[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE),
+            border_radius=4,
+        )
+
+        # Draw boost
+        if boost:
+            pygame.draw.rect(
+                screen,
+                CYAN,
+                pygame.Rect(boost[0] * TILE_SIZE, boost[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE),
+                border_radius=4,
+            )
+
+        # Draw snake
+        for i, segment in enumerate(snake):
+            if rainbow_mode:
+                hue = (i * 30 + score * 10) % 360
+                color = hsl_to_rgb(hue, 1, 0.5)
+            else:
+                color = GREEN if i == 0 else (0, 255, 0, int(255 * (1 - i / (len(snake) + 5))))
+            pygame.draw.rect(
+                screen,
+                color,
+                pygame.Rect(segment[0] * TILE_SIZE, segment[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE),
+                border_radius=4,
+            )
+
+        # Draw score
+        draw_text(f"Score: {score} | High Score: {high_score}", 10)
+
+        pygame.display.flip()
+        clock.tick(speed)
+
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
 
